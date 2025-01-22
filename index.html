@@ -10,7 +10,7 @@
     rel="stylesheet"
   />
   
-  <!-- SweetAlert2 para alertas bonitos -->
+  <!-- SweetAlert2 para alertas -->
   <script 
     src="https://cdn.jsdelivr.net/npm/sweetalert2@11"
   ></script>
@@ -29,7 +29,7 @@
   </script>
 
   <style>
-    /* ===== Estilos de Layout ===== */
+    /* ===== Estilo Minimalista: Branco, Preto, #fec708 ===== */
     body {
       background-color: #fff; /* fundo branco */
       color: #000;            /* texto preto */
@@ -131,22 +131,20 @@
 
   <script>
     //----------------------------------------------------------------------
-    // 1) Função para normalizar nomes (remover acentos, espaços extras, etc.)
+    // 1) Normalização de nome: remover acentos, converter pra maiúsculo,
+    //    trocar non-breaking space por espaço normal, reduzir espaços extras.
     //----------------------------------------------------------------------
     function normalizeName(nome) {
       if (!nome) return "";
-      // Substituir caracteres "non-breaking space" (\u00A0) por espaço normal
-      let txt = nome.replace(/\u00A0/g, " ");
-      // Substituir múltiplos espaços por apenas um
-      txt = txt.replace(/\s+/g, " ");
-      // Remover acentos
-      txt = txt.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      // Converter para maiúsculo e trim
-      return txt.toUpperCase().trim();
+      let txt = nome.replace(/\u00A0/g, " ");  // NBSP -> espaço
+      txt = txt.replace(/\s+/g, " ");         // múltiplos espaços -> 1 espaço
+      txt = txt.normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // remove acentos
+      txt = txt.toUpperCase().trim();
+      return txt;
     }
 
     //----------------------------------------------------------------------
-    // 2) Ler arquivo (Excel ou PDF) -> retorna array de strings
+    // 2) Ler arquivo (Excel ou PDF) e retornar array de strings (brutas)
     //----------------------------------------------------------------------
     async function lerArquivo(arquivo) {
       return new Promise((resolve, reject) => {
@@ -167,7 +165,9 @@
     }
 
     //----------------------------------------------------------------------
-    // 2a) Ler Excel (assumindo nomes na coluna 0, pulando cabeçalho)
+    // 2a) Ler Excel
+    //     Assumindo nomes na coluna 0, pulando 1 linha de cabeçalho (slice(1)).
+    //     Ajuste se precisar pular mais linhas.
     //----------------------------------------------------------------------
     function lerExcel(arquivo) {
       return new Promise((resolve, reject) => {
@@ -177,13 +177,11 @@
             const data = new Uint8Array(e.target.result);
             const workbook = XLSX.read(data, { type: 'array' });
 
-            // Usa apenas a primeira aba
             const firstSheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[firstSheetName];
-            // Converte a planilha em array de arrays
             const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
-            // Pula a primeira linha (cabeçalho). Ajuste se precisar pular mais
+            // Pula a primeira linha (cabeçalho). Se tiver mais, ajuste.
             const nomes = jsonData
               .slice(1)
               .map(row => (row[0] || "").toString().trim())
@@ -202,14 +200,13 @@
     }
 
     //----------------------------------------------------------------------
-    // 2b) Ler PDF (extração simples do texto via pdf.js)
+    // 2b) Ler PDF via pdf.js (forma simples, pode vir desordenado em PDFs complexos)
     //----------------------------------------------------------------------
     async function lerPDF(arquivo) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = async function(e) {
           try {
-            // Configura manualmente o worker do PDF.js
             pdfjsLib.GlobalWorkerOptions.workerSrc =
               "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.worker.min.js";
 
@@ -221,17 +218,17 @@
               const page = await pdf.getPage(pageNumber);
               const content = await page.getTextContent();
               const strings = content.items.map(item => item.str);
-              // Junta tudo em uma linha, separando com espaço
+              // Junta tudo numa linha separada por espaço
               textoCompleto += strings.join(" ") + "\n";
             }
 
-            // Limpeza básica (remove non-breaking space e múltiplos espaços)
+            // Limpeza (NBSP, múltiplos espaços)
             let textoLimpo = textoCompleto
               .replace(/\u00A0/g, " ")
               .replace(/\s+/g, " ")
               .trim();
 
-            // Separa por quebras de linha (rústico; ajuste conforme a formatação do PDF)
+            // Divide por quebras de linha
             const linhas = textoLimpo
               .split(/\r?\n/)
               .map(l => l.trim())
@@ -250,7 +247,7 @@
     }
 
     //----------------------------------------------------------------------
-    // 3) Função principal: comparar os dois arquivos (alunos vs aprovados)
+    // 3) Função principal: comparar e salvar no localStorage
     //----------------------------------------------------------------------
     async function comparar() {
       const fileAlunos = document.getElementById('fileAlunos').files[0];
@@ -275,38 +272,38 @@
       });
 
       try {
-        // Ler ambos os arquivos simultaneamente
-        const [listaAlunos, listaAprovados] = await Promise.all([
+        // Ler simultaneamente
+        const [listaBrutaAlunos, listaBrutaAprovados] = await Promise.all([
           lerArquivo(fileAlunos),
           lerArquivo(fileAprovados)
         ]);
 
-        // Logs para debug
-        console.log("DEBUG - Alunos (bruto):", listaAlunos);
-        console.log("DEBUG - Aprovados (bruto):", listaAprovados);
+        // Normalizar
+        const alunosNormalizados = listaBrutaAlunos.map(normalizeName);
+        const aprovadosNormalizados = listaBrutaAprovados.map(normalizeName);
 
-        // Normaliza
-        const alunosNormalizados = listaAlunos.map(normalizeName);
-        const aprovadosNormalizados = listaAprovados.map(normalizeName);
-
-        console.log("DEBUG - Alunos (normalizados):", alunosNormalizados);
-        console.log("DEBUG - Aprovados (normalizados):", aprovadosNormalizados);
-
-        // Cria um Set para busca rápida
+        // Criar set para busca rápida
         const setAprovados = new Set(aprovadosNormalizados);
 
-        // Cria o array final com { nome, aprovado }
-        const resultado = listaAlunos.map((nomeOriginal, idx) => {
+        // Resultado final
+        const resultado = listaBrutaAlunos.map((nomeOriginal, idx) => {
           const nomeNorm = alunosNormalizados[idx];
-          const estaAprovado = setAprovados.has(nomeNorm) ? "Sim" : "Não";
-          return { nome: nomeOriginal, aprovado: estaAprovado };
+          const isAprovado = setAprovados.has(nomeNorm) ? "Sim" : "Não";
+          return { nome: nomeOriginal, aprovado: isAprovado };
         });
 
-        // Armazena no localStorage
+        // ==== SALVA TUDO NO localStorage ====
+        // 1) Array final {nome, aprovado}
         localStorage.setItem("resultadoComparacao", JSON.stringify(resultado));
+        // 2) Listas brutas e normalizadas, para debug
+        localStorage.setItem("debugBrutaAlunos", JSON.stringify(listaBrutaAlunos));
+        localStorage.setItem("debugBrutaAprovados", JSON.stringify(listaBrutaAprovados));
+        localStorage.setItem("debugNormAlunos", JSON.stringify(alunosNormalizados));
+        localStorage.setItem("debugNormAprovados", JSON.stringify(aprovadosNormalizados));
 
-        // Fecha o alert e redireciona
+        // Fecha o alerta
         Swal.close();
+        // Redireciona
         window.location.href = "resultado.html";
 
       } catch (error) {

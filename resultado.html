@@ -26,18 +26,54 @@
     .table {
       border: 1px solid #000;
     }
-    .btn-back {
+    .btn-back, .btn-toggle {
       background-color: #000;
       color: #fec708;
       border: 2px solid #fec708;
       transition: background-color 0.2s, color 0.2s;
+      margin-right: 1em;
     }
-    .btn-back:hover {
+    .btn-back:hover, .btn-toggle:hover {
       background-color: #fec708;
       color: #000;
     }
-    .btn-back:focus {
+    .btn-back:focus, .btn-toggle:focus {
       box-shadow: none;
+    }
+    .debug-section {
+      display: none; /* hidden by default */
+      margin-top: 2rem;
+    }
+    .debug-section.active {
+      display: block;
+    }
+    .debug-lists-container {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .debug-lists-container > div {
+      flex: 1 1 300px;
+      border: 1px solid #000;
+      padding: 1rem;
+      border-radius: 8px;
+    }
+    .debug-lists-container h4 {
+      background: #000;
+      color: #fec708;
+      padding: 0.5rem;
+      margin-top: 0;
+      border-radius: 4px;
+    }
+    .debug-list {
+      max-height: 200px;
+      overflow-y: auto;
+      margin: 0;
+      padding: 0;
+      list-style: decimal inside;
+    }
+    .debug-list li {
+      margin-bottom: 0.25rem;
     }
   </style>
 </head>
@@ -46,6 +82,7 @@
   <div class="container my-5">
     <h1 class="mb-4 text-center">Resultado da Comparação</h1>
 
+    <!-- Tabela principal -->
     <div class="table-responsive">
       <table class="table text-center align-middle">
         <thead>
@@ -60,28 +97,61 @@
       </table>
     </div>
 
+    <!-- Botões -->
     <div class="text-center mt-4">
       <a href="index.html" class="btn btn-back btn-lg">
         Voltar
       </a>
+      <button class="btn btn-toggle btn-lg" onclick="toggleDebug()">
+        Mostrar/Ocultar Debug
+      </button>
     </div>
+
+    <!-- Seção de Debug -->
+    <div id="debugSection" class="debug-section">
+      <hr>
+      <h2>Depuração (Debug)</h2>
+      <p>Aqui você pode verificar exatamente o que foi lido do Excel/PDF e como foi normalizado.</p>
+
+      <div class="debug-lists-container">
+        <!-- Bruto Alunos -->
+        <div>
+          <h4>Alunos (Bruto)</h4>
+          <ol id="debugBrutaAlunos" class="debug-list"></ol>
+        </div>
+        <!-- Normalizado Alunos -->
+        <div>
+          <h4>Alunos (Normalizados)</h4>
+          <ol id="debugNormAlunos" class="debug-list"></ol>
+        </div>
+        <!-- Bruto Aprovados -->
+        <div>
+          <h4>Aprovados (Bruto)</h4>
+          <ol id="debugBrutaAprovados" class="debug-list"></ol>
+        </div>
+        <!-- Normalizado Aprovados -->
+        <div>
+          <h4>Aprovados (Normalizados)</h4>
+          <ol id="debugNormAprovados" class="debug-list"></ol>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <script>
+    // 1) Ao carregar a página, recuperamos dados do localStorage e preenchemos a tabela
     window.onload = function() {
       const resultadoJSON = localStorage.getItem("resultadoComparacao");
       if (!resultadoJSON) {
-        // Se não houver dados, redireciona de volta
         window.location.href = "index.html";
         return;
       }
 
       const resultado = JSON.parse(resultadoJSON);
       const tabelaBody = document.getElementById("tabelaResultado");
-
       resultado.forEach(item => {
         const tr = document.createElement("tr");
-        
         const tdNome = document.createElement("td");
         tdNome.textContent = item.nome;
         
@@ -92,6 +162,35 @@
         tr.appendChild(tdAprovado);
         tabelaBody.appendChild(tr);
       });
+
+      // Carregamos também os dados de debug
+      const debugBrutaAlunos = JSON.parse(localStorage.getItem("debugBrutaAlunos")) || [];
+      const debugBrutaAprovados = JSON.parse(localStorage.getItem("debugBrutaAprovados")) || [];
+      const debugNormAlunos = JSON.parse(localStorage.getItem("debugNormAlunos")) || [];
+      const debugNormAprovados = JSON.parse(localStorage.getItem("debugNormAprovados")) || [];
+
+      // Preenche os <ol> de debug
+      fillList("debugBrutaAlunos", debugBrutaAlunos);
+      fillList("debugBrutaAprovados", debugBrutaAprovados);
+      fillList("debugNormAlunos", debugNormAlunos);
+      fillList("debugNormAprovados", debugNormAprovados);
+    };
+
+    // 2) Função auxiliar para preencher uma lista de <li>
+    function fillList(elementId, items) {
+      const container = document.getElementById(elementId);
+      container.innerHTML = ""; // Limpa
+      items.forEach(item => {
+        const li = document.createElement("li");
+        li.textContent = item;
+        container.appendChild(li);
+      });
+    }
+
+    // 3) Mostrar/ocultar seção de debug
+    function toggleDebug() {
+      const section = document.getElementById("debugSection");
+      section.classList.toggle("active");
     }
   </script>
 
