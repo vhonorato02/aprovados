@@ -3,58 +3,55 @@
 <head>
   <meta charset="UTF-8" />
   <title>Comparação de Listas - Resultado</title>
-  
+
   <!-- Bootstrap 5 (CSS) -->
   <link 
     href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" 
     rel="stylesheet"
   />
-  <!-- Animate.css para animações -->
-  <link 
-    rel="stylesheet" 
-    href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css"
-  />
 
   <style>
     body {
-      background: linear-gradient(to right, #FFB75E, #ED8F03);
+      background-color: #fff;  /* fundo branco */
+      color: #000;             /* texto preto */
       min-height: 100vh;
-      color: #fff;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
     }
     .table {
-      background-color: rgba(255, 255, 255, 0.15);
-      border-radius: 8px;
-      overflow: hidden;
+      border: 1px solid #000;
     }
     thead {
-      background-color: rgba(0, 0, 0, 0.2);
+      background-color: #000;
+      color: #fec708;
     }
-    thead th {
-      color: #fff;
-    }
-    tbody tr {
-      color: #fff;
+    .bg-highlight {
+      background-color: #fec708 !important;
+      color: #000 !important;
     }
     .btn-back {
-      background-color: #009688;
-      border: none;
-      transition: transform 0.2s;
+      background-color: #000;
+      color: #fec708;
+      border: 2px solid #fec708;
+      transition: background-color 0.2s, color 0.2s;
     }
     .btn-back:hover {
-      transform: scale(1.05);
-      background-color: #00796B;
+      background-color: #fec708;
+      color: #000;
+    }
+    .btn-back:focus {
+      box-shadow: none;
     }
   </style>
 </head>
-<body class="d-flex flex-column">
+<body>
 
-  <div class="container py-5">
-    <h1 class="text-center mb-4 animate__animated animate__fadeInDown">
-      Resultado da Comparação
-    </h1>
+  <div class="container my-5">
+    <h1 class="mb-4 text-center">Resultado da Comparação</h1>
 
-    <div class="table-responsive animate__animated animate__fadeInUp">
-      <table class="table table-bordered text-center">
+    <div class="table-responsive">
+      <table class="table text-center align-middle">
         <thead>
           <tr>
             <th>Nome do Aluno</th>
@@ -62,7 +59,7 @@
           </tr>
         </thead>
         <tbody id="tabelaResultado">
-          <!-- Preenchido via JavaScript -->
+          <!-- Preenchido pelo JavaScript -->
         </tbody>
       </table>
     </div>
@@ -75,29 +72,31 @@
   </div>
 
   <script>
+    // Ao carregar a página, recuperamos os dados do localStorage
     window.onload = function() {
       const resultadoJSON = localStorage.getItem("resultadoComparacao");
       if (!resultadoJSON) {
-        // Se não houver dados no localStorage, redireciona de volta
+        // Se não houver dados, retorna para index.html
         window.location.href = "index.html";
         return;
       }
 
-      const resultadoComparacao = JSON.parse(resultadoJSON);
-      const tabelaBody = document.getElementById("tabelaResultado");
+      const resultado = JSON.parse(resultadoJSON);
+      const tbody = document.getElementById("tabelaResultado");
 
-      resultadoComparacao.forEach(item => {
-        const row = document.createElement("tr");
+      // Preenche a tabela
+      resultado.forEach(item => {
+        const tr = document.createElement("tr");
         
-        const cellNome = document.createElement("td");
-        cellNome.textContent = item.nome;
+        const tdNome = document.createElement("td");
+        tdNome.textContent = item.nome;
         
-        const cellAprovado = document.createElement("td");
-        cellAprovado.textContent = item.aprovado;
+        const tdAprovado = document.createElement("td");
+        tdAprovado.textContent = item.aprovado;
 
-        row.appendChild(cellNome);
-        row.appendChild(cellAprovado);
-        tabelaBody.appendChild(row);
+        tr.appendChild(tdNome);
+        tr.appendChild(tdAprovado);
+        tbody.appendChild(tr);
       });
     }
   </script>

@@ -3,89 +3,92 @@
 <head>
   <meta charset="UTF-8" />
   <title>Comparação de Listas - Upload</title>
-
+  
   <!-- Bootstrap 5 (CSS) -->
   <link 
     href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" 
     rel="stylesheet"
   />
-
-  <!-- Animate.css para animações -->
-  <link 
-    rel="stylesheet" 
-    href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css"
-  />
-
+  
   <!-- SweetAlert2 para alertas bonitos -->
   <script 
     src="https://cdn.jsdelivr.net/npm/sweetalert2@11"
   ></script>
 
-  <!-- Biblioteca XLSX (SheetJS) via CDN (para ler Excel) -->
+  <!-- SheetJS (XLSX) para ler Excel -->
   <script 
     src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
   ></script>
 
-  <!-- Biblioteca PDF.js (para ler PDF) - versão simplificada -->
+  <!-- PDF.js: Ajuste a versão conforme desejar -->
   <script 
-    src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"
-  ></script>
+    src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.min.js">
+  </script>
   <script 
-    src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.worker.min.js"
-  ></script>
+    src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.worker.min.js">
+  </script>
 
   <style>
     body {
-      background: linear-gradient(to right, #00B4DB, #0083B0);
+      background-color: #fff;      /* Fundo branco */
+      color: #000;                 /* Texto preto */
       min-height: 100vh;
-      color: #fff;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .highlight-color {
+      color: #fec708;
+    }
+    .bg-highlight {
+      background-color: #fec708 !important;
+      color: #000 !important;
     }
     .card {
-      background-color: rgba(255, 255, 255, 0.1);
       border: none;
-      border-radius: 1rem;
-      backdrop-filter: blur(10px);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
     .card-header {
-      background-color: rgba(0, 0, 0, 0.2);
-      border-bottom: none;
+      background-color: #000;
+      color: #fec708;
+      font-weight: bold;
       text-align: center;
     }
-    .card-body .form-label {
-      font-weight: 600;
+    .form-label {
+      font-weight: bold;
     }
     .btn-custom {
-      background-color: #FF5722;
-      color: #fff;
-      border: none;
-      transition: transform 0.2s;
+      background-color: #000;
+      color: #fec708;
+      border: 2px solid #fec708;
+      transition: background-color 0.2s, color 0.2s;
     }
     .btn-custom:hover {
-      transform: scale(1.05);
-      background-color: #E64A19;
+      background-color: #fec708;
+      color: #000;
     }
-    .title-shadow {
-      text-shadow: 1px 1px 2px #000;
+    .btn-custom:focus {
+      box-shadow: none;
     }
   </style>
 </head>
-<body class="d-flex align-items-center justify-content-center">
-
-  <div class="container py-5">
+<body>
+  <div class="container my-5">
     <div class="row justify-content-center">
       <div class="col-md-6">
         
         <!-- Card de Upload -->
-        <div class="card animate__animated animate__fadeInUp">
-          <div class="card-header">
-            <h3 class="mb-0 title-shadow">Comparação de Listas</h3>
+        <div class="card">
+          <div class="card-header p-3">
+            <h2 class="mb-0">Comparar Listas</h2>
           </div>
-          <div class="card-body">
+          <div class="card-body p-4">
             
+            <!-- Input de arquivo: Lista de Alunos -->
             <div class="mb-4">
-              <label for="fileAlunos" class="form-label">
-                <strong>Lista de Alunos do Colégio (Excel ou PDF):</strong>
-              </label>
+              <label for="fileAlunos" class="form-label">Lista de Alunos <span class="highlight-color">(Excel ou PDF)</span>:</label>
               <input 
                 type="file" 
                 class="form-control" 
@@ -94,10 +97,9 @@
               />
             </div>
 
+            <!-- Input de arquivo: Lista de Aprovados -->
             <div class="mb-4">
-              <label for="fileAprovados" class="form-label">
-                <strong>Lista de Aprovados (Excel ou PDF):</strong>
-              </label>
+              <label for="fileAprovados" class="form-label">Lista de Aprovados <span class="highlight-color">(Excel ou PDF)</span>:</label>
               <input 
                 type="file" 
                 class="form-control" 
@@ -106,9 +108,10 @@
               />
             </div>
 
+            <!-- Botão de Comparar -->
             <div class="d-grid gap-2">
               <button 
-                class="btn btn-custom btn-lg animate__animated animate__pulse animate__infinite infinite" 
+                class="btn btn-custom btn-lg" 
                 onclick="comparar()"
               >
                 Comparar e Ver Resultado
@@ -124,38 +127,41 @@
   </div>
 
   <script>
-    // ------------------------
-    // LEITURA DE ARQUIVOS
-    // ------------------------
+    //------------------------------------------------------------------
+    // 1) FUNÇÃO PARA REMOVER ACENTOS E COLOCAR EM MAIÚSCULO
+    //------------------------------------------------------------------
+    function normalizeName(nome) {
+      if (!nome) return "";
+      // Remove acentos e transforma em maiúsculo
+      return nome
+        .normalize("NFD")             // Decompõe em caracteres + acentos
+        .replace(/[\u0300-\u036f]/g,"") // Remove acentos
+        .toUpperCase()
+        .trim();
+    }
 
-    /**
-     * Lê o arquivo e retorna uma Promise com um array de nomes extraído.
-     * Verifica se é Excel (xls ou xlsx) ou PDF e chama a função correspondente.
-     */
-    function lerArquivo(arquivo) {
+    //------------------------------------------------------------------
+    // 2) FUNÇÕES PARA LER ARQUIVOS (Excel ou PDF)
+    //------------------------------------------------------------------
+    async function lerArquivo(arquivo) {
       return new Promise((resolve, reject) => {
         if (!arquivo) {
-          return reject("Nenhum arquivo selecionado.");
+          reject("Nenhum arquivo selecionado.");
+          return;
         }
-        
         const extensao = arquivo.name.split('.').pop().toLowerCase();
+        
         if (extensao === 'xlsx' || extensao === 'xls') {
-          lerExcel(arquivo)
-            .then(nomes => resolve(nomes))
-            .catch(err => reject(err));
+          lerExcel(arquivo).then(resolve).catch(reject);
         } else if (extensao === 'pdf') {
-          lerPDF(arquivo)
-            .then(nomes => resolve(nomes))
-            .catch(err => reject(err));
+          lerPDF(arquivo).then(resolve).catch(reject);
         } else {
-          reject("Formato de arquivo não suportado: " + extensao);
+          reject("Formato não suportado: " + extensao);
         }
       });
     }
 
-    /**
-     * Lê um arquivo Excel e retorna um array de nomes (supondo que estejam na primeira coluna).
-     */
+    // Lê planilha Excel e extrai nomes da primeira coluna
     function lerExcel(arquivo) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -163,34 +169,41 @@
           try {
             const data = new Uint8Array(e.target.result);
             const workbook = XLSX.read(data, { type: 'array' });
+            
+            // Vamos pegar apenas a primeira aba
             const firstSheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[firstSheetName];
             const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-            
-            // Ignora o cabeçalho e pega apenas a primeira coluna
-            const nomes = jsonData.slice(1).map(linha => (linha[0] || "").toString().trim()).filter(Boolean);
+
+            // Ignorando a primeira linha (cabeçalho), assumindo que a coluna de nomes é a primeira (índice 0)
+            const nomes = jsonData
+              .slice(1)
+              .map(row => (row[0] || "").toString().trim())
+              .filter(Boolean);
+
             resolve(nomes);
           } catch (error) {
-            reject("Erro ao ler planilha Excel: " + error);
+            reject("Erro ao ler Excel: " + error);
           }
         };
-        reader.onerror = function(error) {
-          reject("Erro ao carregar arquivo Excel: " + error);
+        reader.onerror = function(err) {
+          reject("Erro ao carregar arquivo Excel: " + err);
         };
         reader.readAsArrayBuffer(arquivo);
       });
     }
 
-    /**
-     * Lê um PDF usando PDF.js e retorna um array de nomes.
-     * Neste exemplo, fazemos uma extração simples de texto.
-     */
-    function lerPDF(arquivo) {
+    // Lê PDF usando pdf.js e extrai texto (simples)
+    async function lerPDF(arquivo) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = async function(e) {
-          const typedarray = new Uint8Array(e.target.result);
           try {
+            // Configura manualmente o worker (importante para evitar problemas de CORS)
+            pdfjsLib.GlobalWorkerOptions.workerSrc =
+              "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.worker.min.js";
+
+            const typedarray = new Uint8Array(e.target.result);
             const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
             let textoCompleto = "";
 
@@ -201,33 +214,27 @@
               textoCompleto += strings.join(" ") + "\n";
             }
 
-            // Aqui fazemos um split simples por quebras de linha
-            // e consideramos cada linha (ou pedaço de linha) como "um nome".
-            // Você provavelmente precisará ajustar a lógica conforme o formato do seu PDF.
-            let linhas = textoCompleto
+            // Transformamos cada linha em um "possível nome"
+            const linhas = textoCompleto
               .split(/\r?\n/)
               .map(l => l.trim())
               .filter(l => l.length > 0);
-
-            // Se você tiver um cabeçalho, ou informações adicionais, pode filtrar aqui.
-            // Por exemplo, se quiser ignorar a primeira linha (cabeçalho):
-            // linhas = linhas.slice(1);
 
             resolve(linhas);
           } catch (error) {
             reject("Erro ao ler PDF: " + error);
           }
         };
-        reader.onerror = function(error) {
-          reject("Erro ao carregar arquivo PDF: " + error);
+        reader.onerror = function(err) {
+          reject("Erro ao carregar arquivo PDF: " + err);
         };
         reader.readAsArrayBuffer(arquivo);
       });
     }
 
-    // ------------------------
-    // COMPARAÇÃO DE LISTAS
-    // ------------------------
+    //------------------------------------------------------------------
+    // 3) FUNÇÃO PRINCIPAL: COMPARAR
+    //------------------------------------------------------------------
     async function comparar() {
       const fileAlunos = document.getElementById('fileAlunos').files[0];
       const fileAprovados = document.getElementById('fileAprovados').files[0];
@@ -241,47 +248,50 @@
         return;
       }
 
-      try {
-        Swal.fire({
-          title: 'Processando...',
-          text: 'Por favor, aguarde enquanto processamos os arquivos.',
-          allowOutsideClick: false,
-          didOpen: () => {
-            Swal.showLoading();
-          }
-        });
+      // Alerta de carregamento
+      Swal.fire({
+        title: 'Processando...',
+        text: 'Lendo arquivos e comparando. Aguarde...',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
 
+      try {
+        // Leitura dos 2 arquivos em paralelo
         const [nomesAlunos, nomesAprovados] = await Promise.all([
           lerArquivo(fileAlunos),
           lerArquivo(fileAprovados)
         ]);
 
-        // Normaliza tudo em maiúsculo para comparar sem problemas de acentuação
-        // (Claro que remover acentos seria ainda melhor, mas aqui faremos só upperCase).
-        const setAprovados = new Set(nomesAprovados.map(n => n.toUpperCase()));
+        // Normalizar nomes (tirar acentos, deixar maiúsculo)
+        const alunosNormalizados = nomesAlunos.map(normalizeName);
+        const aprovadosNormalizados = nomesAprovados.map(normalizeName);
 
-        // Construímos resultado
-        const resultadoComparacao = nomesAlunos.map(nome => {
-          return {
-            nome,
-            aprovado: setAprovados.has(nome.toUpperCase()) ? 'Sim' : 'Não'
-          };
+        // Cria um Set para busca rápida
+        const setAprovados = new Set(aprovadosNormalizados);
+
+        // Monta array de { nomeOriginal, aprovado }
+        const resultado = nomesAlunos.map((nomeOriginal, idx) => {
+          const nomeNorm = alunosNormalizados[idx];
+          const isAprovado = setAprovados.has(nomeNorm) ? "Sim" : "Não";
+          return { nome: nomeOriginal, aprovado: isAprovado };
         });
 
         // Salva no localStorage
-        localStorage.setItem("resultadoComparacao", JSON.stringify(resultadoComparacao));
+        localStorage.setItem("resultadoComparacao", JSON.stringify(resultado));
 
-        Swal.close(); // Fecha o loading
-
-        // Redireciona
+        // Fecha o alerta e redireciona
+        Swal.close();
         window.location.href = "resultado.html";
 
-      } catch (err) {
-        console.error("Erro ao processar arquivos: ", err);
+      } catch (error) {
+        console.error("Erro ao processar arquivos:", error);
         Swal.fire({
           icon: 'error',
-          title: 'Oops...',
-          text: 'Ocorreu um erro ao processar os arquivos: ' + err
+          title: 'Erro',
+          text: error.toString()
         });
       }
     }
