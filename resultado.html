@@ -12,23 +12,19 @@
 
   <style>
     body {
-      background-color: #fff;  /* fundo branco */
-      color: #000;             /* texto preto */
+      background-color: #fff; /* fundo branco */
+      color: #000;            /* texto preto */
       min-height: 100vh;
       margin: 0;
       display: flex;
       flex-direction: column;
     }
-    .table {
-      border: 1px solid #000;
-    }
     thead {
       background-color: #000;
       color: #fec708;
     }
-    .bg-highlight {
-      background-color: #fec708 !important;
-      color: #000 !important;
+    .table {
+      border: 1px solid #000;
     }
     .btn-back {
       background-color: #000;
@@ -59,7 +55,7 @@
           </tr>
         </thead>
         <tbody id="tabelaResultado">
-          <!-- Preenchido pelo JavaScript -->
+          <!-- Preenchido via JavaScript -->
         </tbody>
       </table>
     </div>
@@ -72,19 +68,17 @@
   </div>
 
   <script>
-    // Ao carregar a página, recuperamos os dados do localStorage
     window.onload = function() {
       const resultadoJSON = localStorage.getItem("resultadoComparacao");
       if (!resultadoJSON) {
-        // Se não houver dados, retorna para index.html
+        // Se não houver dados, redireciona de volta
         window.location.href = "index.html";
         return;
       }
 
       const resultado = JSON.parse(resultadoJSON);
-      const tbody = document.getElementById("tabelaResultado");
+      const tabelaBody = document.getElementById("tabelaResultado");
 
-      // Preenche a tabela
       resultado.forEach(item => {
         const tr = document.createElement("tr");
         
@@ -96,7 +90,7 @@
 
         tr.appendChild(tdNome);
         tr.appendChild(tdAprovado);
-        tbody.appendChild(tr);
+        tabelaBody.appendChild(tr);
       });
     }
   </script>

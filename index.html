@@ -20,7 +20,7 @@
     src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
   ></script>
 
-  <!-- PDF.js: Ajuste a versão conforme desejar -->
+  <!-- PDF.js (versão 3.4.120) -->
   <script 
     src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.min.js">
   </script>
@@ -29,9 +29,10 @@
   </script>
 
   <style>
+    /* ===== Estilos de Layout ===== */
     body {
-      background-color: #fff;      /* Fundo branco */
-      color: #000;                 /* Texto preto */
+      background-color: #fff; /* fundo branco */
+      color: #000;            /* texto preto */
       min-height: 100vh;
       margin: 0;
       display: flex;
@@ -40,10 +41,6 @@
     }
     .highlight-color {
       color: #fec708;
-    }
-    .bg-highlight {
-      background-color: #fec708 !important;
-      color: #000 !important;
     }
     .card {
       border: none;
@@ -88,7 +85,10 @@
             
             <!-- Input de arquivo: Lista de Alunos -->
             <div class="mb-4">
-              <label for="fileAlunos" class="form-label">Lista de Alunos <span class="highlight-color">(Excel ou PDF)</span>:</label>
+              <label for="fileAlunos" class="form-label">
+                Lista de Alunos 
+                <span class="highlight-color">(Excel ou PDF)</span>:
+              </label>
               <input 
                 type="file" 
                 class="form-control" 
@@ -99,7 +99,10 @@
 
             <!-- Input de arquivo: Lista de Aprovados -->
             <div class="mb-4">
-              <label for="fileAprovados" class="form-label">Lista de Aprovados <span class="highlight-color">(Excel ou PDF)</span>:</label>
+              <label for="fileAprovados" class="form-label">
+                Lista de Aprovados 
+                <span class="highlight-color">(Excel ou PDF)</span>:
+              </label>
               <input 
                 type="file" 
                 class="form-control" 
@@ -127,22 +130,27 @@
   </div>
 
   <script>
-    //------------------------------------------------------------------
-    // 1) FUNÇÃO PARA REMOVER ACENTOS E COLOCAR EM MAIÚSCULO
-    //------------------------------------------------------------------
+    /**
+     * Normaliza o texto:
+     * - Remove acentos
+     * - Converte para maiúsculo
+     * - Remove espaços extras (múltiplos espaços -> 1 espaço)
+     */
     function normalizeName(nome) {
       if (!nome) return "";
-      // Remove acentos e transforma em maiúsculo
-      return nome
-        .normalize("NFD")             // Decompõe em caracteres + acentos
-        .replace(/[\u0300-\u036f]/g,"") // Remove acentos
-        .toUpperCase()
-        .trim();
+      // Substituir caracteres "non-breaking space" por espaço normal
+      let txt = nome.replace(/\u00A0/g, " ");
+      // Substituir múltiplos espaços por um único espaço
+      txt = txt.replace(/\s+/g, " ");
+      // Remover acentos
+      txt = txt.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      // Converter para maiúsculo e trim
+      return txt.toUpperCase().trim();
     }
 
-    //------------------------------------------------------------------
-    // 2) FUNÇÕES PARA LER ARQUIVOS (Excel ou PDF)
-    //------------------------------------------------------------------
+    /**
+     * Lê um arquivo (Excel ou PDF) e retorna uma Promise com um array de strings.
+     */
     async function lerArquivo(arquivo) {
       return new Promise((resolve, reject) => {
         if (!arquivo) {
@@ -161,7 +169,11 @@
       });
     }
 
-    // Lê planilha Excel e extrai nomes da primeira coluna
+    /**
+     * Lê planilha Excel e extrai nomes (assumindo que estão na coluna 0).
+     * Ajuste se sua planilha tiver outra estrutura.
+     * Caso queira pular mais linhas de cabeçalho, altere a slice(1).
+     */
     function lerExcel(arquivo) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -170,12 +182,12 @@
             const data = new Uint8Array(e.target.result);
             const workbook = XLSX.read(data, { type: 'array' });
             
-            // Vamos pegar apenas a primeira aba
             const firstSheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[firstSheetName];
             const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
-            // Ignorando a primeira linha (cabeçalho), assumindo que a coluna de nomes é a primeira (índice 0)
+            // "1" -> Pular apenas a primeira linha (cabeçalho).
+            // Ajuste se seu arquivo tiver mais linhas extras.
             const nomes = jsonData
               .slice(1)
               .map(row => (row[0] || "").toString().trim())
@@ -193,29 +205,43 @@
       });
     }
 
-    // Lê PDF usando pdf.js e extrai texto (simples)
+    /**
+     * Lê PDF usando pdf.js e extrai texto de modo simples (página a página).
+     * Se o PDF tiver colunas, a ordem do texto pode vir misturada.
+     */
     async function lerPDF(arquivo) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = async function(e) {
           try {
-            // Configura manualmente o worker (importante para evitar problemas de CORS)
+            // Configura manualmente o worker
             pdfjsLib.GlobalWorkerOptions.workerSrc =
               "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.worker.min.js";
 
             const typedarray = new Uint8Array(e.target.result);
             const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
+
             let textoCompleto = "";
 
             for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
               const page = await pdf.getPage(pageNumber);
               const content = await page.getTextContent();
               const strings = content.items.map(item => item.str);
+              // Junta tudo numa única linha, separando com espaço
               textoCompleto += strings.join(" ") + "\n";
             }
 
-            // Transformamos cada linha em um "possível nome"
-            const linhas = textoCompleto
+            // Limpeza simples dos espaços
+            let textoLimpo = textoCompleto
+              // Substituir "non-breaking space"
+              .replace(/\u00A0/g, " ")
+              // Múltiplos espaços => um espaço
+              .replace(/\s+/g, " ")
+              .trim();
+
+            // Splita em linhas por quebras de linha ou ponto-e-vírgula/etc. 
+            // Ajuste conforme a formatação do PDF.
+            const linhas = textoLimpo
               .split(/\r?\n/)
               .map(l => l.trim())
               .filter(l => l.length > 0);
@@ -232,9 +258,9 @@
       });
     }
 
-    //------------------------------------------------------------------
-    // 3) FUNÇÃO PRINCIPAL: COMPARAR
-    //------------------------------------------------------------------
+    /**
+     * Função principal: lê os arquivos, normaliza e compara.
+     */
     async function comparar() {
       const fileAlunos = document.getElementById('fileAlunos').files[0];
       const fileAprovados = document.getElementById('fileAprovados').files[0];
@@ -259,21 +285,27 @@
       });
 
       try {
-        // Leitura dos 2 arquivos em paralelo
-        const [nomesAlunos, nomesAprovados] = await Promise.all([
+        // Ler os 2 arquivos em paralelo
+        const [listaAlunos, listaAprovados] = await Promise.all([
           lerArquivo(fileAlunos),
           lerArquivo(fileAprovados)
         ]);
 
-        // Normalizar nomes (tirar acentos, deixar maiúsculo)
-        const alunosNormalizados = nomesAlunos.map(normalizeName);
-        const aprovadosNormalizados = nomesAprovados.map(normalizeName);
+        console.log("DEBUG - Lista de Alunos (bruto):", listaAlunos);
+        console.log("DEBUG - Lista de Aprovados (bruto):", listaAprovados);
 
-        // Cria um Set para busca rápida
+        // Normaliza todos
+        const alunosNormalizados = listaAlunos.map(normalizeName);
+        const aprovadosNormalizados = listaAprovados.map(normalizeName);
+
+        console.log("DEBUG - Lista de Alunos (normalizado):", alunosNormalizados);
+        console.log("DEBUG - Lista de Aprovados (normalizado):", aprovadosNormalizados);
+
+        // Cria set para busca rápida
         const setAprovados = new Set(aprovadosNormalizados);
 
-        // Monta array de { nomeOriginal, aprovado }
-        const resultado = nomesAlunos.map((nomeOriginal, idx) => {
+        // Monta array final: { nome, aprovado }
+        const resultado = listaAlunos.map((nomeOriginal, idx) => {
           const nomeNorm = alunosNormalizados[idx];
           const isAprovado = setAprovados.has(nomeNorm) ? "Sim" : "Não";
           return { nome: nomeOriginal, aprovado: isAprovado };
@@ -282,8 +314,9 @@
         // Salva no localStorage
         localStorage.setItem("resultadoComparacao", JSON.stringify(resultado));
 
-        // Fecha o alerta e redireciona
+        // Fecha o alerta
         Swal.close();
+        // Redireciona
         window.location.href = "resultado.html";
 
       } catch (error) {
