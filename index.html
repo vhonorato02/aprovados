@@ -9,18 +9,15 @@
     href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" 
     rel="stylesheet"
   />
-  
-  <!-- SweetAlert2 para alertas -->
+  <!-- SweetAlert2 -->
   <script 
     src="https://cdn.jsdelivr.net/npm/sweetalert2@11"
   ></script>
-
-  <!-- SheetJS (XLSX) para ler Excel -->
+  <!-- SheetJS (XLSX) -->
   <script 
     src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
   ></script>
-
-  <!-- PDF.js (versão 3.4.120) -->
+  <!-- PDF.js -->
   <script 
     src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.min.js">
   </script>
@@ -29,18 +26,14 @@
   </script>
 
   <style>
-    /* ===== Estilo Minimalista: Branco, Preto, #fec708 ===== */
     body {
-      background-color: #fff; /* fundo branco */
-      color: #000;            /* texto preto */
+      background-color: #fff;
+      color: #000;
       min-height: 100vh;
       margin: 0;
       display: flex;
       align-items: center;
       justify-content: center;
-    }
-    .highlight-color {
-      color: #fec708;
     }
     .card {
       border: none;
@@ -66,260 +59,257 @@
       background-color: #fec708;
       color: #000;
     }
-    .btn-custom:focus {
-      box-shadow: none;
-    }
   </style>
 </head>
 <body>
-  <div class="container my-5">
-    <div class="row justify-content-center">
-      <div class="col-md-6">
-        
-        <!-- Card de Upload -->
-        <div class="card">
-          <div class="card-header p-3">
-            <h2 class="mb-0">Comparar Listas</h2>
-          </div>
-          <div class="card-body p-4">
-            
-            <!-- Input de arquivo: Lista de Alunos -->
-            <div class="mb-4">
-              <label for="fileAlunos" class="form-label">
-                Lista de Alunos 
-                <span class="highlight-color">(Excel ou PDF)</span>:
-              </label>
-              <input 
-                type="file" 
-                class="form-control" 
-                id="fileAlunos" 
-                accept=".xlsx, .xls, .pdf"
-              />
-            </div>
-
-            <!-- Input de arquivo: Lista de Aprovados -->
-            <div class="mb-4">
-              <label for="fileAprovados" class="form-label">
-                Lista de Aprovados 
-                <span class="highlight-color">(Excel ou PDF)</span>:
-              </label>
-              <input 
-                type="file" 
-                class="form-control" 
-                id="fileAprovados" 
-                accept=".xlsx, .xls, .pdf"
-              />
-            </div>
-
-            <!-- Botão de Comparar -->
-            <div class="d-grid gap-2">
-              <button 
-                class="btn btn-custom btn-lg" 
-                onclick="comparar()"
-              >
-                Comparar e Ver Resultado
-              </button>
-            </div>
-
-          </div>
+<div class="container my-5">
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header p-3">
+          <h2 class="mb-0">Comparar Listas</h2>
         </div>
-        <!-- Fim Card -->
+        <div class="card-body p-4">
 
+          <div class="mb-4">
+            <label for="fileAlunos" class="form-label">Lista de Alunos (Excel ou PDF):</label>
+            <input 
+              type="file" 
+              class="form-control" 
+              id="fileAlunos" 
+              accept=".xlsx, .xls, .pdf"
+            />
+          </div>
+
+          <div class="mb-4">
+            <label for="fileAprovados" class="form-label">Lista de Aprovados (Excel ou PDF):</label>
+            <input 
+              type="file" 
+              class="form-control" 
+              id="fileAprovados" 
+              accept=".xlsx, .xls, .pdf"
+            />
+          </div>
+
+          <div class="d-grid gap-2">
+            <button 
+              class="btn btn-custom btn-lg"
+              onclick="comparar()"
+            >
+              Comparar e Ver Resultado
+            </button>
+          </div>
+          
+        </div>
       </div>
     </div>
   </div>
+</div>
 
-  <script>
-    //----------------------------------------------------------------------
-    // 1) Normalização de nome: remover acentos, converter pra maiúsculo,
-    //    trocar non-breaking space por espaço normal, reduzir espaços extras.
-    //----------------------------------------------------------------------
-    function normalizeName(nome) {
-      if (!nome) return "";
-      let txt = nome.replace(/\u00A0/g, " ");  // NBSP -> espaço
-      txt = txt.replace(/\s+/g, " ");         // múltiplos espaços -> 1 espaço
-      txt = txt.normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // remove acentos
-      txt = txt.toUpperCase().trim();
-      return txt;
-    }
+<script>
+  // -------------------------------------------
+  // Normalizar nome (remove acentos, uppercase)
+  // -------------------------------------------
+  function normalizeName(nome) {
+    if (!nome) return "";
+    let txt = nome.replace(/\u00A0/g, " ");  // NBSP -> espaço
+    txt = txt.replace(/\s+/g, " ");         // múltiplos espaços -> 1
+    txt = txt.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return txt.toUpperCase().trim();
+  }
 
-    //----------------------------------------------------------------------
-    // 2) Ler arquivo (Excel ou PDF) e retornar array de strings (brutas)
-    //----------------------------------------------------------------------
-    async function lerArquivo(arquivo) {
-      return new Promise((resolve, reject) => {
-        if (!arquivo) {
-          reject("Nenhum arquivo selecionado.");
-          return;
-        }
-        const extensao = arquivo.name.split('.').pop().toLowerCase();
-        
-        if (extensao === 'xlsx' || extensao === 'xls') {
-          lerExcel(arquivo).then(resolve).catch(reject);
-        } else if (extensao === 'pdf') {
-          lerPDF(arquivo).then(resolve).catch(reject);
+  // ------------------------------------------------------------------------
+  // Faz a detecção de linhas baseado no "y" (vertical). Se y mudar, nova linha.
+  // "yThreshold" é a sensibilidade (quanto menor, mais fácil "quebrar linha").
+  // ------------------------------------------------------------------------
+  function parsePDFContentToLines(content, yThreshold = 5) {
+    const lines = [];
+    let currentLine = [];
+    let currentY = null;
+
+    for (const item of content.items) {
+      const y = item.transform[5];  // Posição vertical
+      if (currentY === null) {
+        // Primeira vez
+        currentY = y;
+        currentLine.push(item.str);
+      } else {
+        if (Math.abs(y - currentY) < yThreshold) {
+          // Mesma linha (y muito parecido)
+          currentLine.push(item.str);
         } else {
-          reject("Formato não suportado: " + extensao);
+          // Nova linha
+          lines.push(currentLine.join(" "));
+          currentLine = [item.str];
+          currentY = y;
         }
-      });
+      }
     }
 
-    //----------------------------------------------------------------------
-    // 2a) Ler Excel
-    //     Assumindo nomes na coluna 0, pulando 1 linha de cabeçalho (slice(1)).
-    //     Ajuste se precisar pular mais linhas.
-    //----------------------------------------------------------------------
-    function lerExcel(arquivo) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          try {
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
-
-            const firstSheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[firstSheetName];
-            const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
-            // Pula a primeira linha (cabeçalho). Se tiver mais, ajuste.
-            const nomes = jsonData
-              .slice(1)
-              .map(row => (row[0] || "").toString().trim())
-              .filter(Boolean);
-
-            resolve(nomes);
-          } catch (error) {
-            reject("Erro ao ler Excel: " + error);
-          }
-        };
-        reader.onerror = function(err) {
-          reject("Erro ao carregar arquivo Excel: " + err);
-        };
-        reader.readAsArrayBuffer(arquivo);
-      });
+    // última linha
+    if (currentLine.length > 0) {
+      lines.push(currentLine.join(" "));
     }
+    return lines;
+  }
 
-    //----------------------------------------------------------------------
-    // 2b) Ler PDF via pdf.js (forma simples, pode vir desordenado em PDFs complexos)
-    //----------------------------------------------------------------------
-    async function lerPDF(arquivo) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = async function(e) {
-          try {
-            pdfjsLib.GlobalWorkerOptions.workerSrc =
-              "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.worker.min.js";
-
-            const typedarray = new Uint8Array(e.target.result);
-            const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
-
-            let textoCompleto = "";
-            for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
-              const page = await pdf.getPage(pageNumber);
-              const content = await page.getTextContent();
-              const strings = content.items.map(item => item.str);
-              // Junta tudo numa linha separada por espaço
-              textoCompleto += strings.join(" ") + "\n";
-            }
-
-            // Limpeza (NBSP, múltiplos espaços)
-            let textoLimpo = textoCompleto
-              .replace(/\u00A0/g, " ")
-              .replace(/\s+/g, " ")
-              .trim();
-
-            // Divide por quebras de linha
-            const linhas = textoLimpo
-              .split(/\r?\n/)
-              .map(l => l.trim())
-              .filter(l => l.length > 0);
-
-            resolve(linhas);
-          } catch (error) {
-            reject("Erro ao ler PDF: " + error);
-          }
-        };
-        reader.onerror = function(err) {
-          reject("Erro ao carregar arquivo PDF: " + err);
-        };
-        reader.readAsArrayBuffer(arquivo);
-      });
-    }
-
-    //----------------------------------------------------------------------
-    // 3) Função principal: comparar e salvar no localStorage
-    //----------------------------------------------------------------------
-    async function comparar() {
-      const fileAlunos = document.getElementById('fileAlunos').files[0];
-      const fileAprovados = document.getElementById('fileAprovados').files[0];
-
-      if (!fileAlunos || !fileAprovados) {
-        Swal.fire({
-          icon: 'warning',
-          title: 'Atenção',
-          text: 'Por favor, selecione ambos os arquivos antes de prosseguir.'
-        });
+  // -------------------------------------------
+  // Ler arquivo (Excel ou PDF)
+  // -------------------------------------------
+  async function lerArquivo(arquivo) {
+    return new Promise((resolve, reject) => {
+      if (!arquivo) {
+        reject("Nenhum arquivo selecionado.");
         return;
       }
+      const ext = arquivo.name.split('.').pop().toLowerCase();
+      if (ext === 'xlsx' || ext === 'xls') {
+        lerExcel(arquivo).then(resolve).catch(reject);
+      } else if (ext === 'pdf') {
+        lerPDF(arquivo).then(resolve).catch(reject);
+      } else {
+        reject("Formato não suportado: " + ext);
+      }
+    });
+  }
 
-      Swal.fire({
-        title: 'Processando...',
-        text: 'Lendo arquivos e comparando. Aguarde...',
-        allowOutsideClick: false,
-        didOpen: () => {
-          Swal.showLoading();
+  // -------------------------------------------
+  // Ler planilha Excel
+  // -------------------------------------------
+  function lerExcel(arquivo) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+          // pular a primeira linha (cabeçalho)
+          const nomes = jsonData.slice(1).map(row => (row[0] || "").trim()).filter(Boolean);
+          resolve(nomes);
+        } catch (err) {
+          reject("Erro ao ler Excel: " + err);
         }
+      };
+      reader.onerror = err => reject("Erro ao carregar arquivo Excel: " + err);
+      reader.readAsArrayBuffer(arquivo);
+    });
+  }
+
+  // -------------------------------------------
+  // Ler PDF, mas detectando linhas via parsePDFContentToLines
+  // -------------------------------------------
+  async function lerPDF(arquivo) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = async e => {
+        try {
+          pdfjsLib.GlobalWorkerOptions.workerSrc =
+            "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.worker.min.js";
+
+          const typedarray = new Uint8Array(e.target.result);
+          const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
+
+          let allLines = [];
+
+          for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+            const page = await pdf.getPage(pageNumber);
+            const content = await page.getTextContent();
+
+            // Faz o parse para separar linhas
+            const lines = parsePDFContentToLines(content, 5);
+            allLines = allLines.concat(lines);
+          }
+
+          // Em alguns PDFs, pode haver muito espaço ou itens vazios, então limpamos
+          allLines = allLines
+            .map(l => l.replace(/\u00A0/g, " "))  // NBSP -> espaço
+            .map(l => l.replace(/\s+/g, " ").trim())
+            .filter(l => l.length > 0);
+
+          resolve(allLines);
+
+        } catch (error) {
+          reject("Erro ao ler PDF: " + error);
+        }
+      };
+      reader.onerror = err => reject("Erro ao carregar arquivo PDF: " + err);
+      reader.readAsArrayBuffer(arquivo);
+    });
+  }
+
+  // -------------------------------------------
+  // Função principal: comparar e salvar no localStorage
+  // -------------------------------------------
+  async function comparar() {
+    const fileAlunos = document.getElementById("fileAlunos").files[0];
+    const fileAprovados = document.getElementById("fileAprovados").files[0];
+
+    if (!fileAlunos || !fileAprovados) {
+      Swal.fire({ icon: 'warning', title: 'Atenção', text: 'Selecione ambos os arquivos.' });
+      return;
+    }
+
+    Swal.fire({
+      title: 'Processando...',
+      text: 'Por favor aguarde.',
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      }
+    });
+
+    try {
+      // Lê os dois arquivos simultaneamente
+      const [listaAlunos, listaAprovados] = await Promise.all([
+        lerArquivo(fileAlunos),
+        lerArquivo(fileAprovados),
+      ]);
+
+      // Normaliza
+      const alunosNorm = listaAlunos.map(normalizeName);
+      const aprovadosNorm = listaAprovados.map(normalizeName);
+
+      // Cria set para busca rápida
+      const setAprovados = new Set(aprovadosNorm);
+
+      // Monta resultado final
+      const resultado = listaAlunos.map((nomeOriginal, idx) => {
+        const nomeNorm = alunosNorm[idx];
+        const isAprovado = setAprovados.has(nomeNorm) ? "Sim" : "Não";
+        return { nome: nomeOriginal, aprovado: isAprovado };
       });
 
-      try {
-        // Ler simultaneamente
-        const [listaBrutaAlunos, listaBrutaAprovados] = await Promise.all([
-          lerArquivo(fileAlunos),
-          lerArquivo(fileAprovados)
-        ]);
+      // Salva no localStorage
+      localStorage.setItem("resultadoComparacao", JSON.stringify(resultado));
 
-        // Normalizar
-        const alunosNormalizados = listaBrutaAlunos.map(normalizeName);
-        const aprovadosNormalizados = listaBrutaAprovados.map(normalizeName);
+      // Extra (caso queira depurar):
+      localStorage.setItem("debugAlunosBruto", JSON.stringify(listaAlunos));
+      localStorage.setItem("debugAprovadosBruto", JSON.stringify(listaAprovados));
+      localStorage.setItem("debugAlunosNorm", JSON.stringify(alunosNorm));
+      localStorage.setItem("debugAprovadosNorm", JSON.stringify(aprovadosNorm));
 
-        // Criar set para busca rápida
-        const setAprovados = new Set(aprovadosNormalizados);
+      Swal.close();
+      window.location.href = "resultado.html";
 
-        // Resultado final
-        const resultado = listaBrutaAlunos.map((nomeOriginal, idx) => {
-          const nomeNorm = alunosNormalizados[idx];
-          const isAprovado = setAprovados.has(nomeNorm) ? "Sim" : "Não";
-          return { nome: nomeOriginal, aprovado: isAprovado };
-        });
-
-        // ==== SALVA TUDO NO localStorage ====
-        // 1) Array final {nome, aprovado}
-        localStorage.setItem("resultadoComparacao", JSON.stringify(resultado));
-        // 2) Listas brutas e normalizadas, para debug
-        localStorage.setItem("debugBrutaAlunos", JSON.stringify(listaBrutaAlunos));
-        localStorage.setItem("debugBrutaAprovados", JSON.stringify(listaBrutaAprovados));
-        localStorage.setItem("debugNormAlunos", JSON.stringify(alunosNormalizados));
-        localStorage.setItem("debugNormAprovados", JSON.stringify(aprovadosNormalizados));
-
-        // Fecha o alerta
-        Swal.close();
-        // Redireciona
-        window.location.href = "resultado.html";
-
-      } catch (error) {
-        console.error("Erro ao processar arquivos:", error);
-        Swal.fire({
-          icon: 'error',
-          title: 'Erro',
-          text: error.toString()
-        });
-      }
+    } catch (err) {
+      console.error(err);
+      Swal.fire({
+        icon: 'error',
+        title: 'Erro',
+        text: err.toString()
+      });
     }
-  </script>
+  }
+</script>
 
-  <!-- Bootstrap 5 (JS) -->
-  <script 
-    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js">
-  </script>
+<!-- Bootstrap JS -->
+<script 
+  src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js">
+</script>
+
 </body>
 </html>
